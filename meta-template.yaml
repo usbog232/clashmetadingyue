@@ -1,16 +1,9 @@
-mixed-port: 7890
-redir-port: 7892
-tproxy-port: 7893
+port: 7890
+socks-port: 7891
 allow-lan: true
-bind-address: "*"
 mode: rule
 log-level: info
-
 external-controller: 0.0.0.0:9090
-external-ui: ui
-secret: ""
-
-ipv6: false
 udp: true
 unified-delay: true
 tcp-concurrent: true
@@ -36,175 +29,113 @@ dns:
     geoip-code: CN
 
 # =========================
-# 1) 节点订阅（Proxy Provider）
-# =========================
-proxy-providers:
-  sub:
-    type: http
-    url: "YOUR_SUBSCRIPTION_URL_HERE"
-    interval: 3600
-    path: ./providers/sub.yaml
-    health-check:
-      enable: true
-      url: http://www.gstatic.com/generate_204
-      interval: 300
-
-# =========================
-# 2) 自动分类（按节点名正则筛选）
-#    你节点名里常见：香港/日本/台湾/美国/新加坡、HK/JP/TW/US/SG
+# 策略组：第一层（应用）+ 第二层（国家测速）
+# 关键：include-all + filter 自动从 proxies 里筛选
 # =========================
 proxy-groups:
-
-  # --- 国家测速组（第二层） ---
-  - name: "🇭🇰 HK"
+  # ---- 国家测速组（第二层）----
+  - name: "🚀 HK"
     type: url-test
-    use: [sub]
-    filter: "(?i)(香港|\\bHK\\b|Hong\\s*Kong)"
+    include-all: true
+    filter: "(?i)(🇭🇰|香港|\\bHK\\b|hong\\s*kong)"
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
 
-  - name: "🇯🇵 JP"
+  - name: "🚀 JP"
     type: url-test
-    use: [sub]
-    filter: "(?i)(日本|\\bJP\\b|Japan|Tokyo|Osaka)"
+    include-all: true
+    filter: "(?i)(🇯🇵|日本|\\bJP\\b|tokyo|osaka)"
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
 
-  - name: "🇹🇼 TW"
+  - name: "🚀 TW"
     type: url-test
-    use: [sub]
-    filter: "(?i)(台湾|\\bTW\\b|Taiwan|Taipei|Hinet)"
+    include-all: true
+    filter: "(?i)(🇹🇼|台湾|\\bTW\\b|taiwan|taipei|hinet)"
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
 
-  - name: "🇺🇸 US"
+  - name: "🚀 US"
     type: url-test
-    use: [sub]
-    filter: "(?i)(美国|\\bUS\\b|United\\s*States|Los\\s*Angeles|San\\s*Jose|Seattle|New\\s*York)"
+    include-all: true
+    filter: "(?i)(🇺🇸|美国|\\bUS\\b|united\\s*states|los\\s*angeles|san\\s*jose|seattle|new\\s*york)"
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
 
-  - name: "🇸🇬 SG"
+  - name: "🚀 SG"
     type: url-test
-    use: [sub]
-    filter: "(?i)(新加坡|\\bSG\\b|Singapore)"
+    include-all: true
+    filter: "(?i)(🇸🇬|新加坡|\\bSG\\b|singapore)"
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
 
-  # --- 兜底测速/故障转移 ---
   - name: "♻️ Fallback"
     type: fallback
-    proxies:
-      - 🇭🇰 HK
-      - 🇸🇬 SG
-      - 🇯🇵 JP
-      - 🇺🇸 US
-      - 🇹🇼 TW
+    proxies: ["🚀 HK","🚀 SG","🚀 JP","🚀 US","🚀 TW"]
     url: http://www.gstatic.com/generate_204
     interval: 300
 
-  # =========================
-  # 3) 应用策略组（第一层，精细分流就靠它）
-  # =========================
+  # ---- 默认出口（兜底）----
   - name: "🌐 Default"
     type: select
     proxies:
       - ♻️ Fallback
-      - 🇭🇰 HK
-      - 🇸🇬 SG
-      - 🇯🇵 JP
-      - 🇺🇸 US
-      - 🇹🇼 TW
+      - 🚀 HK
+      - 🚀 SG
+      - 🚀 JP
+      - 🚀 US
+      - 🚀 TW
       - DIRECT
 
+  # ---- 应用策略组（第一层）----
   - name: "🎬 YouTube"
     type: select
-    proxies:
-      - 🇹🇼 TW
-      - 🇯🇵 JP
-      - 🇭🇰 HK
-      - 🌐 Default
-      - DIRECT
+    proxies: ["🚀 TW","🚀 JP","🚀 HK","🌐 Default","DIRECT"]
 
   - name: "🤖 ChatGPT"
     type: select
-    proxies:
-      - 🇯🇵 JP
-      - 🇺🇸 US
-      - 🇸🇬 SG
-      - 🌐 Default
+    proxies: ["🚀 JP","🚀 US","🚀 SG","🌐 Default"]
 
   - name: "🍎 Apple"
     type: select
-    proxies:
-      - 🇺🇸 US
-      - DIRECT
-      - 🌐 Default
-
-  - name: "🧠 AI"
-    type: select
-    proxies:
-      - 🇯🇵 JP
-      - 🇸🇬 SG
-      - 🇺🇸 US
-      - 🌐 Default
+    proxies: ["🚀 US","DIRECT","🌐 Default"]
 
   - name: "📨 Telegram"
     type: select
-    proxies:
-      - 🇸🇬 SG
-      - 🇭🇰 HK
-      - 🇯🇵 JP
-      - 🌐 Default
+    proxies: ["🚀 SG","🚀 HK","🚀 JP","🌐 Default"]
+
+  - name: "🧠 AI"
+    type: select
+    proxies: ["🚀 JP","🚀 SG","🚀 US","🌐 Default"]
 
   - name: "🟦 OKX"
     type: select
-    proxies:
-      - 🇭🇰 HK
-      - 🇸🇬 SG
-      - 🌐 Default
-      - DIRECT
+    proxies: ["🚀 HK","🚀 SG","🌐 Default","DIRECT"]
 
   - name: "🟨 Binance"
     type: select
-    proxies:
-      - 🇭🇰 HK
-      - 🇸🇬 SG
-      - 🌐 Default
-      - DIRECT
+    proxies: ["🚀 HK","🚀 SG","🌐 Default","DIRECT"]
 
   - name: "🟥 Adobe"
     type: select
-    proxies:
-      - 🇺🇸 US
-      - 🇯🇵 JP
-      - 🌐 Default
-      - DIRECT
+    proxies: ["🚀 US","🚀 JP","🌐 Default","DIRECT"]
 
   - name: "🟪 Proton"
     type: select
-    proxies:
-      - 🇺🇸 US
-      - 🇸🇬 SG
-      - 🇯🇵 JP
-      - 🌐 Default
+    proxies: ["🚀 US","🚀 SG","🚀 JP","🌐 Default"]
 
-  # 面板里给你一个总开关（可选）
+  # 面板总开关（可选）
   - name: "🚀 PROXY"
     type: select
-    proxies:
-      - 🌐 Default
-      - ♻️ Fallback
-      - DIRECT
-
+    proxies: ["🌐 Default","♻️ Fallback","DIRECT"]
 
 # =========================
-# 4) 规则集（MetaCubeX）
+# 规则集（MetaCubeX）
 # =========================
 rule-providers:
   youtube:
@@ -235,18 +166,18 @@ rule-providers:
     path: ./ruleset/telegram.yaml
     interval: 86400
 
-  binance:
-    type: http
-    behavior: domain
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/binance.yaml"
-    path: ./ruleset/binance.yaml
-    interval: 86400
-
   okx:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/okx.yaml"
     path: ./ruleset/okx.yaml
+    interval: 86400
+
+  binance:
+    type: http
+    behavior: domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/binance.yaml"
+    path: ./ruleset/binance.yaml
     interval: 86400
 
   adobe:
@@ -256,7 +187,6 @@ rule-providers:
     path: ./ruleset/adobe.yaml
     interval: 86400
 
-  # AI 相关（除 openai 外的常见 AI/模型/平台）
   ai:
     type: http
     behavior: domain
@@ -264,26 +194,17 @@ rule-providers:
     path: ./ruleset/ai.yaml
     interval: 86400
 
-  geosite-cn:
+  cn:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/cn.yaml"
     path: ./ruleset/cn.yaml
     interval: 86400
 
-  geoip-cn:
-    type: http
-    behavior: ipcidr
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip/cn.yaml"
-    path: ./ruleset/geoip-cn.yaml
-    interval: 86400
-
-
 # =========================
-# 5) 规则（顺序决定一切！）
+# 规则（顺序非常重要）
 # =========================
 rules:
-  # --- 精细分流（放最前） ---
   - RULE-SET,openai,🤖 ChatGPT
   - RULE-SET,youtube,🎬 YouTube
   - RULE-SET,apple,🍎 Apple
@@ -293,17 +214,16 @@ rules:
   - RULE-SET,binance,🟨 Binance
   - RULE-SET,adobe,🟥 Adobe
 
-  # --- Proton（目前用自定义域名规则，够用且稳定） ---
+  # Proton（常用域名，足够稳定）
   - DOMAIN-SUFFIX,proton.me,🟪 Proton
   - DOMAIN-SUFFIX,protonvpn.com,🟪 Proton
   - DOMAIN-SUFFIX,protonmail.com,🟪 Proton
   - DOMAIN-SUFFIX,pm.me,🟪 Proton
   - DOMAIN-SUFFIX,protonstatus.com,🟪 Proton
 
-  # --- 国内直连（降低误伤） ---
-  - RULE-SET,geosite-cn,DIRECT
-  - RULE-SET,geoip-cn,DIRECT
+  # 国内直连
+  - RULE-SET,cn,DIRECT
   - GEOIP,CN,DIRECT
 
-  # --- 兜底 ---
+  # 兜底
   - MATCH,🌐 Default
